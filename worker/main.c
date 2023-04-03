@@ -27,7 +27,10 @@ int md5sum(char *hash, char *const path)
     // child code
     if (pid == 0)
     {
-        dup2(pipe_fd[STDOUT_FILENO], STDOUT_FILENO);
+        if (dup2(pipe_fd[STDOUT_FILENO], STDOUT_FILENO) == -1)
+        {
+            _exit(1);
+        }
         char *const md5_path = "/usr/bin/md5sum";
         char *const argv[3] = {md5_path, path, NULL};
         execv(md5_path, argv);
@@ -47,6 +50,7 @@ int md5sum(char *hash, char *const path)
         return -1;
     }
 
+    close_pipe(pipe_fd);
     return 0;
 }
 
