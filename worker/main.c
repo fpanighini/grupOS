@@ -1,7 +1,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
-
-#define MD5_LEN 32
+#include <string.h>
+#include "../lib.h"
 
 void close_pipe(int pipe_fd[2])
 {
@@ -56,13 +56,31 @@ int md5sum(char *hash, char *const path)
 
 int main(int argc, char const *argv[])
 {
-    /* test code */
-    char hash[MD5_LEN];
-    md5sum(hash, "/usr/bin/md5sum");
-    if (write(STDOUT_FILENO, hash, MD5_LEN) != MD5_LEN)
+    Result result;
+    Task task;
+
+    while (1)
     {
-        return 1;
+        int bytes = read(STDIN_FILENO, &task, sizeof(Task));
+        if (bytes == 0)
+        {
+            return 0;
+        }
+        else if (bytes != sizeof(Task))
+        {
+            return 1;
+        }
+
+        if (md5sum(result.hash, task.path) == -1)
+        {
+            memset(result.hash, '0', MD5_LEN);
+        }
+
+        strncpy(result.path, task.path, PATH_MAX);
+
+        if (write(STDOUT_FILENO, &result, sizeof(Result)) != sizeof(Result))
+        {
+            return 1;
+        }
     }
-    /* test code */
-    return 0;
 }
