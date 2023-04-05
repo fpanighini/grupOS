@@ -4,6 +4,7 @@
 #include "../lib.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 
 void close_pipe(int pipe_fd[2])
 {
@@ -20,7 +21,7 @@ int md5sum(char *hash, char *const path)
     }
 
     int pid = fork();
-    if (pid == -1)              // Fork Error
+    if (pid == -1) // Fork Error
     {
         close_pipe(pipe_fd);
         return -1;
@@ -29,10 +30,11 @@ int md5sum(char *hash, char *const path)
     // child code
     if (pid == 0)
     {
-        if (dup2(pipe_fd[WRITE_END], STDOUT_FILENO) == -1)          // Connect stdout of process with write end of the pipe
+        if (dup2(pipe_fd[WRITE_END], STDOUT_FILENO) == -1) // Connect stdout of process with write end of the pipe
         {
             _exit(1);
         }
+        close_pipe(pipe_fd);
         char *const md5_path = "/usr/bin/md5sum";
         char *const argv[3] = {md5_path, path, NULL};
         execv(md5_path, argv);
@@ -40,8 +42,8 @@ int md5sum(char *hash, char *const path)
     }
 
     int status;
-    if (waitpid(pid, &status, 0) == -1 || !WIFEXITED(status) || WEXITSTATUS(status) != 0)       // wait for child process and ask if status is false and if exit status is not zero
-    {                                                                                           // Something went wrong with the child process
+    if (waitpid(pid, &status, 0) == -1 || !WIFEXITED(status) || WEXITSTATUS(status) != 0) // wait for child process and ask if status is false and if exit status is not zero
+    {                                                                                     // Something went wrong with the child process
         close_pipe(pipe_fd);
         return -1;
     }
@@ -57,29 +59,31 @@ int md5sum(char *hash, char *const path)
 
 int main(int argc, char const *argv[])
 {
-
-    char * path = NULL;
-    char hash[MD5_LEN+1];
+    char hash[MD5_LEN + 1];
+    char *path = NULL;
     ssize_t len;
     size_t n = 0;
-    while ((len = getline(&path,  &n, stdin)) > 0)
+    
+    while ((len = getline(&path, &n, stdin)) > 0)
     {
-        path[len - 1] = 0;
-        md5sum(hash, path);
-        hash[MD5_LEN] = '\n';
+        path[len - 1] = '\0';
 
-        if (write(STDOUT_FILENO, &hash, MD5_LEN + 1) == -1)
+        md5sum(hash, path);
+        hash[MD5_LEN] = '\0';
+
+        if (dprintf(STDOUT_FILENO, "%05d - %s - %s\n", getpid(), hash, path) < 0)
         {
+            perror("Worker write error");
             free(path);
-            perror("Worker write");
             return 1;
         }
     }
-    if (path != NULL){
-        free(path);
-    }
-    if (len == -1){
-        perror("Worker Read");
+    int aux = errno;
+    free(path);
+
+    if (len == -1 && (aux == EINVAL || aux == ENOMEM))
+    {
+        perror("Worker read error");
         return 1;
     }
     return 0;
