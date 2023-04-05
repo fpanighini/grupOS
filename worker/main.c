@@ -2,6 +2,8 @@
 #include <sys/wait.h>
 #include <string.h>
 #include "../lib.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 void close_pipe(int pipe_fd[2])
 {
@@ -18,7 +20,7 @@ int md5sum(char *hash, char *const path)
     }
 
     int pid = fork();
-    if (pid == -1)
+    if (pid == -1)              // Fork Error
     {
         close_pipe(pipe_fd);
         return -1;
@@ -27,7 +29,7 @@ int md5sum(char *hash, char *const path)
     // child code
     if (pid == 0)
     {
-        if (dup2(pipe_fd[STDOUT_FILENO], STDOUT_FILENO) == -1)
+        if (dup2(pipe_fd[WRITE_END], STDOUT_FILENO) == -1)          // Connect stdout of process with write end of the pipe
         {
             _exit(1);
         }
@@ -38,49 +40,47 @@ int md5sum(char *hash, char *const path)
     }
 
     int status;
-    if (waitpid(pid, &status, 0) == -1 || !WIFEXITED(status) || WEXITSTATUS(status) != 0)
-    {
+    if (waitpid(pid, &status, 0) == -1 || !WIFEXITED(status) || WEXITSTATUS(status) != 0)       // wait for child process and ask if status is false and if exit status is not zero
+    {                                                                                           // Something went wrong with the child process
         close_pipe(pipe_fd);
         return -1;
     }
 
-    if (read(pipe_fd[STDIN_FILENO], hash, MD5_LEN) != MD5_LEN)
+    if (read(pipe_fd[READ_END], hash, MD5_LEN) != MD5_LEN)
     {
         close_pipe(pipe_fd);
         return -1;
     }
-
     close_pipe(pipe_fd);
     return 0;
 }
 
 int main(int argc, char const *argv[])
 {
-    Result result;
-    Task task;
 
-    while (1)
+    char * path = NULL;
+    char hash[MD5_LEN+1];
+    ssize_t len;
+    size_t n = 0;
+    while ((len = getline(&path,  &n, stdin)) > 0)
     {
-        int bytes = read(STDIN_FILENO, &task, sizeof(Task));
-        if (bytes == 0)
-        {
-            return 0;
-        }
-        else if (bytes != sizeof(Task))
-        {
-            return 1;
-        }
+        path[len - 1] = 0;
+        md5sum(hash, path);
+        hash[MD5_LEN] = '\n';
 
-        if (md5sum(result.hash, task.path) == -1)
+        if (write(STDOUT_FILENO, &hash, MD5_LEN + 1) == -1)
         {
-            memset(result.hash, '0', MD5_LEN);
-        }
-
-        strncpy(result.path, task.path, PATH_MAX);
-
-        if (write(STDOUT_FILENO, &result, sizeof(Result)) != sizeof(Result))
-        {
+            free(path);
+            perror("Worker write");
             return 1;
         }
     }
+    if (path != NULL){
+        free(path);
+    }
+    if (len == -1){
+        perror("Worker Read");
+        return 1;
+    }
+    return 0;
 }

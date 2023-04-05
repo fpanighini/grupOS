@@ -24,15 +24,6 @@ int main(int argc, char const *argv[])
 
     for (int i = 1; i < argc; i++)
     {
-        Task task;
-        Result result;
-        strncpy(task.path, argv[i], PATH_MAX);
-        write(pipe_in[STDOUT_FILENO], &task, sizeof(Task));
-        read(pipe_out[STDIN_FILENO], &result, sizeof(Result));
-        write(STDOUT_FILENO, result.hash, MD5_LEN);
-        write(STDOUT_FILENO, " - ", 3);
-        write(STDOUT_FILENO, result.path, PATH_MAX);
-        write(STDOUT_FILENO, "\n", 1);
     }
     /* test code */
     return 0;
