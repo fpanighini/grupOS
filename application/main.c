@@ -19,14 +19,14 @@ int worker_creator(Worker * worker){
 }
 
 
-void destroy_worker(Worker * worker){
+void destroy_worker(Worker ** worker){
     // Destroy individual worker
 }
 
-void destroy_workers(Worker  * workers, int dim){
+void destroy_workers(Worker  ** workers, int dim){
     int i;
     for (i = 0 ; i < dim ; i++){
-        destroy_worker(&workers[i]);
+        destroy_worker((Worker**) &workers[i]);
     }
 }
 
@@ -38,7 +38,7 @@ int main(int argc, char const *argv[])
     Worker workers[WORKER_NUMBER];
     for (i = 0 ; i < WORKER_NUMBER ; i++){
         if (worker_creator(&workers[i]) == -1){
-            destroy_workers(workers, i);
+            destroy_workers((Worker **) &workers, i);
         }
         FD_SET(workers[i].pipe_out[0], &read_workers);
     }
