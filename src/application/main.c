@@ -48,14 +48,16 @@ int main(int argc, char const *argv[])
         return 0;
     }
 
-    //int worker_number = 0;
-    //if(argc < 5)
-    //{
-    //  worker_number = argc;
-    //} else 
-    //{
-    //    worker_number = WORKER_NUMBER;
-    //}
+    /*
+    int worker_number = 0;
+    if(argc < 5)
+    {
+      worker_number = argc;
+    } else 
+    {
+        worker_number = WORKER_NUMBER;
+    }
+    */
 
     fd_set read_workers;
     fd_set write_workers;
@@ -69,47 +71,72 @@ int main(int argc, char const *argv[])
         }
         if (fork() == 0)
         {
-            dup2(workers[i].pipe_in[0], STDIN_FILENO);
-            dup2(workers[i].pipe_out[1], STDOUT_FILENO);
-            close(workers[i].pipe_in[1]);
-            close(workers[i].pipe_out[0]);
+            dup2(workers[i].pipe_in[READ_END], STDIN_FILENO);
+            dup2(workers[i].pipe_out[WRITE_END], STDOUT_FILENO);
+            close(workers[i].pipe_in[WRITE_END]);
+            close(workers[i].pipe_out[READ_END]);
             char *const arguments[2] = {WORKER_NAME, NULL};
             execv(WORKER_PATH, arguments);
             _exit(1);
         }
         else
         {
-            FD_SET(workers[i].pipe_out[0], &read_workers);
-            FD_SET(workers[i].pipe_in[1], &write_workers);
-            close(workers[i].pipe_in[0]);
-            close(workers[i].pipe_out[1]);
+            FD_SET(workers[i].pipe_out[READ_END], &read_workers);
+            FD_SET(workers[i].pipe_in[WRITE_END], &write_workers);
+            close(workers[i].pipe_in[READ_END]);
+            close(workers[i].pipe_out[WRITE_END]);
         }
     }
 
-    int arg_counter = 1;
-    for (i = 0; i < WORKER_NUMBER && arg_counter < argc; i++)
-    {
-        write(workers[i].pipe_in[1], argv[arg_counter++], PATH_MAX);
-    }
-    
 
     /*
+    int arg_counter = 1;
+    int args_read = 1;
+    for (i = 0; i < WORKER_NUMBER && arg_counter < argc; i++)
+    {
+        //printf("ARGC: %d, ARG_COUNTER: %d\n", argc, arg_counter);
+        dprintf(workers[i].pipe_in[WRITE_END], "%s\n", argv[arg_counter++]);
+        //printf("HOLA\n");
+    }
+
+    
     struct timeval t_eval = {0, 100}; // Timeval struct: Time that select will wait
     int fd_num;
-    while (1)
+    char * buffer = NULL;
+    size_t n = 0;
+
+    printf("ARGC: %d, ARGS_R: %d\n", argc, args_read);
+
+    while (args_read < argc)
     {
-        fd_num = select(WORKER_NUMBER + 1, &read_workers, &write_workers, &read_workers, &t_eval);
+        fd_num = select(workers[WORKER_NUMBER-1].pipe_out[WRITE_END] + 1, &read_workers, NULL, NULL, &t_eval); // where to send exceptions
         if (fd_num == -1)
         {
             perror("select");
-            destroy_workers((Worker **)workers, WORKER_NUMBER);
+            destroy_workers((Worker *) workers, WORKER_NUMBER);
+            return 1;
         }
-        while (fd_num > 0)
+        for (i = 0; fd_num > 0 && i < WORKER_NUMBER; i++)
         {
+            if(getline(&buffer, &n, workers[i].fd) != -1)
+            { 
+                args_read++;
+                printf("%s", buffer);
+                if(arg_counter < argc)
+                {
+                    write(workers[i].pipe_in[WRITE_END], argv[arg_counter++], PATH_MAX);
+                    fd_num--;
+                }
+            }
         }
     }
-    */
-   
+    
+    free(buffer);
+   */
+
+
+
+
     // /* test code */
     // int pipe_in[2];
     // int pipe_out[2];
