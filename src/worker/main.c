@@ -58,7 +58,6 @@ int main(int argc, char const *argv[])
     char *path = NULL;
     ssize_t len;
     size_t n = 0;
-    
     while ((len = getline(&path, &n, stdin)) > 0)
     {
         path[len - 1] = '\0';
@@ -72,6 +71,8 @@ int main(int argc, char const *argv[])
             free(path);
             return 1;
         }
+
+        sleep(2);
     }
     int aux = errno;
     free(path);

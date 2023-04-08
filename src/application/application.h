@@ -8,10 +8,13 @@
 #include "../../lib/lib.h"
 #include <sys/select.h>
 
+#include <sys/types.h>
+#include <sys/wait.h>
+
 #define WORKER_NUMBER 6
 #define BUFFER_SIZE (PATH_MAX * 2)
 
-#define WORKER_PATH "./worker"
+#define WORKER_PATH "./bin/worker"
 #define WORKER_NAME "worker"
 
 typedef struct Worker {

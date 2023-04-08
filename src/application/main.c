@@ -49,15 +49,15 @@ int main(int argc, char const *argv[])
     }
 
     /*
-    int worker_number = 0;
-    if(argc < 5)
-    {
-      worker_number = argc;
-    } else 
-    {
-        worker_number = WORKER_NUMBER;
-    }
-    */
+       int worker_number = 0;
+       if(argc < 5)
+       {
+       worker_number = argc;
+       } else 
+       {
+       worker_number = WORKER_NUMBER;
+       }
+       */
 
     fd_set read_workers;
     fd_set write_workers;
@@ -89,85 +89,49 @@ int main(int argc, char const *argv[])
     }
 
 
-    /*
     int arg_counter = 1;
     int args_read = 1;
     for (i = 0; i < WORKER_NUMBER && arg_counter < argc; i++)
     {
-        //printf("ARGC: %d, ARG_COUNTER: %d\n", argc, arg_counter);
         dprintf(workers[i].pipe_in[WRITE_END], "%s\n", argv[arg_counter++]);
-        //printf("HOLA\n");
     }
-
-    
     struct timeval t_eval = {0, 100}; // Timeval struct: Time that select will wait
+    struct timeval aux_t_eval = t_eval;// Timeval struct: Time that select will wait
     int fd_num;
     char * buffer = NULL;
     size_t n = 0;
 
-    printf("ARGC: %d, ARGS_R: %d\n", argc, args_read);
+    int j;
 
-    while (args_read < argc)
-    {
-        fd_num = select(workers[WORKER_NUMBER-1].pipe_out[WRITE_END] + 1, &read_workers, NULL, NULL, &t_eval); // where to send exceptions
+    fd_set aux = read_workers;
+
+    printf("ARGC: %d, ARGS_R: %d\n", argc, args_read);
+    while(args_read < argc){
+        for (j = 0 ;args_read < argc && j < WORKER_NUMBER ; j++){
+            if(getline(&buffer, &n, workers[j].fd) != -1) {
+                args_read++;
+                printf("%s", buffer);
+                if(arg_counter < argc) {
+                    dprintf(workers[j].pipe_in[WRITE_END], "%s\n", argv[arg_counter++]);
+                    printf("%d\n", arg_counter);
+                    //fd_num--;
+                }
+            }
+        }
+        while (args_read < argc && (fd_num = select(workers[WORKER_NUMBER-1].pipe_out[WRITE_END] + 1, &read_workers, NULL, NULL, &t_eval)) == 0){
+            read_workers = aux;
+            t_eval =aux_t_eval;
+        }
         if (fd_num == -1)
         {
             perror("select");
             destroy_workers((Worker *) workers, WORKER_NUMBER);
             return 1;
         }
-        for (i = 0; fd_num > 0 && i < WORKER_NUMBER; i++)
-        {
-            if(getline(&buffer, &n, workers[i].fd) != -1)
-            { 
-                args_read++;
-                printf("%s", buffer);
-                if(arg_counter < argc)
-                {
-                    write(workers[i].pipe_in[WRITE_END], argv[arg_counter++], PATH_MAX);
-                    fd_num--;
-                }
-            }
-        }
+            read_workers = aux;
+            t_eval =aux_t_eval;
     }
-    
     free(buffer);
-   */
-
-
-
-
-    // /* test code */
-    // int pipe_in[2];
-    // int pipe_out[2];
-
-    // pipe(pipe_in);
-    // pipe(pipe_out);
-
-    // FILE * output = fdopen(pipe_out[READ_END], "r");
-
-    // char * buffer = NULL;
-    // size_t n = 0;
-
-    // if (fork() == 0)
-    // {
-    //     dup2(pipe_in[READ_END], STDIN_FILENO);
-    //     dup2(pipe_out[WRITE_END], STDOUT_FILENO);
-    //     char *const arguments[2] = {"worker", NULL};
-    //     execv("./worker", arguments);
-    //     _exit(1);
-    // }
-    // for (i = 1; i < argc; i++)
-    // {
-    //     dprintf(pipe_in[WRITE_END], "%s\n", argv[i]);
-    //     getline(&buffer, &n, output);
-    //     printf("%s", buffer);
-    //     // Write to shared mem
-    // }
-    // free(buffer);
-    // /* test code */
-
     destroy_workers((Worker *)workers, WORKER_NUMBER);
-
     return 0;
 }
