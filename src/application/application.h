@@ -11,18 +11,21 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#define WORKER_NUMBER 6
+#define WORKERS_MAX 6
 #define BUFFER_SIZE (PATH_MAX * 2)
 
 #define WORKER_PATH "./bin/worker"
 #define WORKER_NAME "worker"
 
 typedef struct Worker {
-    int pipe_in[2];
-    int pipe_out[2];
-    FILE * fd;
+    int pid;
+    int pipe_write;
+    int pipe_read;
+    FILE * file_read;
 } Worker;
 
 
+void close_pipes(int pipe_fds[][2], size_t count);
+void close_files(FILE * files[], size_t count);
 
 #endif // APPLICATION_H
