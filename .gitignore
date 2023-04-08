@@ -54,3 +54,4 @@ dkms.conf
 bin/
 *.swp
 .vscode/
+.bash_history

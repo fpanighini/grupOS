@@ -5,7 +5,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "../lib.h"
+#include "../../lib/lib.h"
 #include <sys/select.h>
 
 #define WORKER_NUMBER 6

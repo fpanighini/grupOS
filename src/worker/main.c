@@ -1,7 +1,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <string.h>
-#include "../lib.h"
+#include "../../lib/lib.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
