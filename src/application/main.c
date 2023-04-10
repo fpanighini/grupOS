@@ -157,7 +157,7 @@ int main(int argc, char const *argv[])
         while (args_read < argc && (fd_num = select(workers[WORKERS_MAX - 1].pipe_read + 1, &read_workers, NULL, NULL, &t_eval)) == 0)
         {
             read_workers = aux;
-            t_eval = aux_t_eval;
+            //t_eval = aux_t_eval;
         }
         if (fd_num == -1)
         {
@@ -165,11 +165,9 @@ int main(int argc, char const *argv[])
             workers_free(workers, WORKERS_MAX);
             return 1;
         }
-        read_workers = aux;
-        t_eval = aux_t_eval;
-        for (j = 0; args_read < argc && j < WORKERS_MAX; j++)
+        for (j = 0; args_read < argc && fd_num > 0 && j < WORKERS_MAX; j++)
         {
-            if (getline(&buffer, &n, workers[j].file_read) != -1)
+            if (FD_ISSET(workers[j].pipe_read, &read_workers) && getline(&buffer, &n, workers[j].file_read) != -1)
             {
                 args_read++;
                 printf("%s", buffer);
@@ -177,10 +175,12 @@ int main(int argc, char const *argv[])
                 {
                     dprintf(workers[j].pipe_write, "%s\n", argv[arg_counter++]);
                     // printf("%d\n", arg_counter);
-                    // fd_num--;
+                    fd_num--;
                 }
             }
         }
+        read_workers = aux;
+        t_eval = aux_t_eval;
     }
     free(buffer);
     workers_free(workers, WORKERS_MAX);
