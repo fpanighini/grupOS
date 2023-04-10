@@ -10,6 +10,7 @@
 
 #define READ_END 0
 #define WRITE_END 1
+#define SHAREMEM_WAIT 2
 
 
 void close_pipe(int pipe_fd[2]);

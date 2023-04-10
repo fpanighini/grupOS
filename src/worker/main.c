@@ -71,8 +71,6 @@ int main(int argc, char const *argv[])
             free(path);
             return 1;
         }
-
-        sleep(2);
     }
     int aux = errno;
     free(path);

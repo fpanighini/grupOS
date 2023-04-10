@@ -123,8 +123,11 @@ int main(int argc, char const *argv[])
        worker_number = WORKER_NUMBER;
        }
        */
+    // Shared memory creation
+    sleep(SHAREMEM_WAIT);
 
     fd_set read_workers;
+    FD_ZERO(&read_workers);
     int i;
     Worker workers[WORKERS_MAX];
     if (workers_spawn(workers, WORKERS_MAX, &read_workers) == -1)
@@ -148,23 +151,9 @@ int main(int argc, char const *argv[])
 
     fd_set aux = read_workers;
 
-    printf("ARGC: %d, ARGS_R: %d\n", argc, args_read);
+    // printf("ARGC: %d, ARGS_R: %d\n", argc, args_read);
     while (args_read < argc)
     {
-        for (j = 0; args_read < argc && j < WORKERS_MAX; j++)
-        {
-            if (getline(&buffer, &n, workers[j].file_read) != -1)
-            {
-                args_read++;
-                printf("%s", buffer);
-                if (arg_counter < argc)
-                {
-                    dprintf(workers[j].pipe_write, "%s\n", argv[arg_counter++]);
-                    printf("%d\n", arg_counter);
-                    // fd_num--;
-                }
-            }
-        }
         while (args_read < argc && (fd_num = select(workers[WORKERS_MAX - 1].pipe_read + 1, &read_workers, NULL, NULL, &t_eval)) == 0)
         {
             read_workers = aux;
@@ -178,6 +167,20 @@ int main(int argc, char const *argv[])
         }
         read_workers = aux;
         t_eval = aux_t_eval;
+        for (j = 0; args_read < argc && j < WORKERS_MAX; j++)
+        {
+            if (getline(&buffer, &n, workers[j].file_read) != -1)
+            {
+                args_read++;
+                printf("%s", buffer);
+                if (arg_counter < argc)
+                {
+                    dprintf(workers[j].pipe_write, "%s\n", argv[arg_counter++]);
+                    // printf("%d\n", arg_counter);
+                    // fd_num--;
+                }
+            }
+        }
     }
     free(buffer);
     workers_free(workers, WORKERS_MAX);
