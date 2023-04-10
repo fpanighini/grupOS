@@ -10,7 +10,8 @@ int workers_spawn(Worker workers[], size_t count, fd_set *read_workers)
     // open pipes
     int pipes_path[WORKERS_MAX][2];
     int pipes_hash[WORKERS_MAX][2];
-    for (size_t i = 0; i < count; i++)
+    size_t i;
+    for (i = 0; i < count; i++)
     {
         if (pipe(pipes_path[i]) == -1)
         {
@@ -28,7 +29,7 @@ int workers_spawn(Worker workers[], size_t count, fd_set *read_workers)
 
     // fork workers
     int cpid[WORKERS_MAX];
-    for (size_t i = 0; i < count; i++)
+    for (i = 0; i < count; i++)
     {
         cpid[i] = fork();
         if (cpid[i] == -1)
@@ -56,7 +57,7 @@ int workers_spawn(Worker workers[], size_t count, fd_set *read_workers)
 
     // open files
     FILE *files_hash[WORKERS_MAX];
-    for (size_t i = 0; i < count; i++)
+    for (i = 0; i < count; i++)
     {
         files_hash[i] = fdopen(pipes_hash[i][READ_END], "r");
         if (files_hash[i] == NULL)
@@ -70,7 +71,7 @@ int workers_spawn(Worker workers[], size_t count, fd_set *read_workers)
 
     // success: write data
     FD_ZERO(read_workers);
-    for (size_t i = 0; i < count; i++)
+    for (i = 0; i < count; i++)
     {
         close(pipes_path[i][READ_END]);
         close(pipes_hash[i][WRITE_END]);
@@ -92,7 +93,8 @@ int workers_free(Worker workers[], size_t count)
     }
 
     // close pipes
-    for (size_t i = 0; i < count; i++)
+    size_t i;
+    for (i = 0; i < count; i++)
     {
         close(workers[i].pipe_write);
         fclose(workers[i].file_read);
