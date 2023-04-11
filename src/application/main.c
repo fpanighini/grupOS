@@ -141,8 +141,6 @@ int main(int argc, char const *argv[])
     {
         dprintf(workers[i].pipe_write, "%s\n", argv[arg_counter++]);
     }
-    struct timeval t_eval = {0, 100};   // Timeval struct: Time that select will wait
-    struct timeval aux_t_eval = t_eval; // Timeval struct: Time that select will wait
     int fd_num;
     char *buffer = NULL;
     size_t n = 0;
@@ -154,10 +152,9 @@ int main(int argc, char const *argv[])
     // printf("ARGC: %d, ARGS_R: %d\n", argc, args_read);
     while (args_read < argc)
     {
-        while (args_read < argc && (fd_num = select(workers[WORKERS_MAX - 1].pipe_read + 1, &read_workers, NULL, NULL, &t_eval)) == 0)
+        while (args_read < argc && (fd_num = select(workers[WORKERS_MAX - 1].pipe_read + 1, &read_workers, NULL, NULL, NULL)) == 0)
         {
             read_workers = aux;
-            //t_eval = aux_t_eval;
         }
         if (fd_num == -1)
         {
@@ -180,7 +177,6 @@ int main(int argc, char const *argv[])
             }
         }
         read_workers = aux;
-        t_eval = aux_t_eval;
     }
     free(buffer);
     workers_free(workers, WORKERS_MAX);
