@@ -56,3 +56,4 @@ test/
 *.swp
 .vscode/
 .bash_history
+.txt

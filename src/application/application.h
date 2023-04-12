@@ -20,6 +20,7 @@
 #define WORKER_PATH "./bin/worker"
 #define WORKER_NAME "worker"
 
+#define OUTPUT_PATH "output.txt"
 
 typedef struct Worker {
     int pid;

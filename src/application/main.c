@@ -8,8 +8,16 @@ int workers_free(Worker workers[], size_t count);
 
 int main(int argc, char const *argv[])
 {
+    sem_t *sem = sem_open(SEMAPHORE_NAME_READ_BUFFER, O_CREAT | O_RDWR, 0666, 0);
+    sem_t *sem_viewer = sem_open(SEMAPHORE_NAME_VIEWER, O_CREAT | O_RDWR, 0666, 0);
+    sem_post(sem_viewer);
+
 
     const char* shm_name = SHARED_MEM_NAME;
+    printf("%s\n", shm_name);
+
+
+    const char* shm_buf_name = SHARED_MEM_BUF_NAME;
 
     int shm_fd = shm_open(shm_name, O_CREAT | O_RDWR, 0666);
     if (shm_fd == -1){
@@ -17,20 +25,48 @@ int main(int argc, char const *argv[])
         return -1;
     }
 
-    if (ftruncate(shm_fd, SHM_SIZE) == -1){
+    if (ftruncate(shm_fd, sizeof(int)) == -1){
         perror("ftruncate");
         return -1;
     }
 
-    char *shared_mem = (char *) mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
-    if (shared_mem == MAP_FAILED){
+    int shm_buf_fd = shm_open(shm_buf_name, O_CREAT | O_RDWR, 0666);
+    if (shm_buf_fd == -1){
+        perror("shm_open");
+        return -1;
+    }
+
+    if (ftruncate(shm_buf_fd, SHM_WIDTH * argc) == -1){
+        perror("ftruncate");
+        return -1;
+    }
+
+    Shm_t shared_mem;
+
+    shared_mem.size = (int *) mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    if (shared_mem.size == MAP_FAILED){
         perror("mmap");
         return -1;
     }
 
-    sem_t *sem = sem_open(SEMAPHORE_NAME_READ_BUFFER, O_CREAT | O_RDWR, 0666, 0);
-    sem_t *sem_viewer = sem_open(SEMAPHORE_NAME_VIEWER, O_CREAT | O_RDWR, 0666, 0);
-    sem_post(sem_viewer);
+    *shared_mem.size = argc - 1;
+
+    shared_mem.buf = (char *) mmap(NULL, SHM_WIDTH * *shared_mem.size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_buf_fd, 0);
+    if (shared_mem.buf == MAP_FAILED){
+        perror("mmap");
+        return -1;
+    }
+
+    const char * path_name = OUTPUT_PATH;
+
+    FILE * output_file = fopen(path_name, "w");
+    if (output_file == NULL){
+        return -1;
+    }
+
+    strcpy(shared_mem.buf, "hola\n");
+
+
     /*
        int worker_number = 0;
        if(argc < 5)
@@ -85,12 +121,12 @@ int main(int argc, char const *argv[])
             if (FD_ISSET(workers[j].pipe_read, &read_workers) && getline(&buffer, &n, workers[j].file_read) != -1)
             {
                 args_read++;
-                printf("%s", buffer);
+                //printf("%s", buffer);
+                fprintf(output_file, "%s", buffer);
 
                 // write(shm_fd, buffer, sizeof(buffer));
                 sem_post(sem);
                 // Write to shared mem
-                // shm_mem[arg_counter] = malloc(strlen(buffer) * sizeof(char));
                 // strcpy(buffer, shm_mem[arg_counter++]);
                 // printf("%d\n", arg_counter);
                 if (arg_counter < argc)
@@ -106,22 +142,39 @@ int main(int argc, char const *argv[])
     workers_free(workers, WORKERS_MAX);
 
     sem_wait(sem_viewer);
+
+    fclose(output_file);
+
+
+    if(munmap(shared_mem.buf, SHM_WIDTH * *shared_mem.size) == -1){
+        perror("munmap viewer");
+        return -1;
+    }
+    if(shm_unlink(shm_buf_name) == -1){
+        perror("shm_unlink");
+        return -1;
+    }
+
+
+    if(munmap(shared_mem.size, sizeof(int)) == -1){
+        perror("munmap viewer");
+        return -1;
+    }
+    if(shm_unlink(shm_name) == -1){
+        perror("shm_unlink");
+        return -1;
+    }
+
+
+
+
+
+
+
     sem_close(sem);
     sem_unlink(SEMAPHORE_NAME_READ_BUFFER);
     sem_close(sem_viewer);
     sem_unlink(SEMAPHORE_NAME_VIEWER);
-
-
-
-
-    if(munmap(shared_mem, SHM_SIZE) == -1){
-        perror("munmap");
-        return -1;
-    }
-    if(shm_unlink(SHARED_MEM_NAME) == -1){
-        perror("shm_unlink");
-        return -1;
-    }
 
     return 0;
 }
