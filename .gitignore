@@ -52,6 +52,7 @@ Mkfile.old
 dkms.conf
 
 bin/
+test/
 *.swp
 .vscode/
 .bash_history

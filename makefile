@@ -1,5 +1,5 @@
 CC = gcc
-FLAG_INC = -g -Wall -Werror
+FLAG_INC =-pthread -lrt -g -Wall -Werror
 
 all: app worker viewer
 
@@ -15,7 +15,7 @@ worker:
 
 viewer:
 	mkdir -p bin/
-	$(CC) src/viewer/*.c lib/*.h lib/*.c -o bin/viewer $(FLAG_INC)
+	$(CC) src/viewer/*.c src/viewer/*.h lib/*.h lib/*.c -o bin/viewer $(FLAG_INC)
 
 clean:
 	rm -rf bin/*
