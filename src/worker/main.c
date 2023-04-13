@@ -52,7 +52,7 @@ int md5sum(char *hash, char *const path)
     return 0;
 }
 
-int main(int argc, char const *argv[])
+int main()
 {
     char hash[MD5_LEN + 1];
     char *path = NULL;
