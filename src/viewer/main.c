@@ -3,87 +3,64 @@
 
 int main(int argc, char const *argv[])
 {
-    char read_buf[100];
-    const char* shm_name;
-    if (argc == 1){
-        read(0, read_buf, 15);
-        shm_name = read_buf;
+    int fd_info;
+    if (argc < 2){
+        char shm_path[SHM_PATH_LEN];
+        read(0, shm_path, SHM_PATH_LEN);
+        fd_info = open(shm_path, O_RDWR);
     }
-    else {
-        shm_name = argv[1];
+    else if (argc == 2) {
+        fd_info = open(argv[1], O_RDWR);
     }
-
-
-    printf("%s\n", shm_name);
-
-    const char* shm_buf_name = SHARED_MEM_BUF_NAME;
-
-    int shm_fd = shm_open(shm_name, O_RDWR, 0666);
-    if (shm_fd == -1){
-        perror("shm_open 1");
-        return -1;
+    else
+    {
+        perror("Incorrect number of arguments");
+        return 1;
     }
-
-    int shm_buf_fd = shm_open(shm_buf_name, O_RDWR, 0666);
-    if (shm_buf_fd == -1){
-        perror("shm_open");
-        return -1;
-    }
-
-    Shm_t shared_mem;
-
-    shared_mem.size = (int *) mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
-    if (shared_mem.size == MAP_FAILED){
-        perror("mmap");
-        return -1;
-    }
-
-     shared_mem.buf = (char *) mmap(NULL, SHM_WIDTH * *shared_mem.size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_buf_fd, 0);
-     if (shared_mem.buf == MAP_FAILED){
-         perror("mmap");
-         return -1;
-     }
-    sem_t *sem = sem_open(SEMAPHORE_NAME_READ_BUFFER, O_RDWR);
-    sem_t *sem_viewer = sem_open(SEMAPHORE_NAME_VIEWER, O_RDWR);
-
-    sem_wait(sem_viewer);
-
-    printf("%s\n", shared_mem.buf);
-    // TEST
-    //char buf[100];
-
-    // printf("start\n");
-
     
-//     char *buffer = NULL;
-//     size_t n = 0;
-
-    // int i;
-    // for (i = 0 ; i < 9 ; i++){
-    //     sem_wait(sem);
-    //     printf("while\n");
-    //     read(shm_fd, &buf,99);
-    //     printf("%s\n", buf);
-    // }
-
-
-    if(munmap(shared_mem.buf, SHM_WIDTH * *shared_mem.size) == -1){
-        perror("munmap viewer");
+    if (fd_info == -1){
+        perror("open info");
         return -1;
     }
 
+    SharedMemInfo * shm_info = mmap(NULL, sizeof(SharedMemInfo), PROT_READ | PROT_WRITE, MAP_SHARED, fd_info, 0);
+    close(fd_info);
+    if (shm_info == MAP_FAILED)
+    {
+        perror("mmap info");
+        return 1;
+    }
 
-    if(munmap(shared_mem.size, sizeof(int)) == -1){
-        perror("munmap viewer");
+    if (sem_trywait(&shm_info->sem_viewer) == -1)
+    {
+        perror("application unavailable");
+        munmap(shm_info, sizeof(SharedMemInfo));
+        return 1;
+    }
+
+    int buf_fd = open(shm_info->buf_path, O_RDONLY);
+    if (buf_fd == -1){
+        perror("open buf");
+        munmap(shm_info, sizeof(SharedMemInfo));
         return -1;
     }
 
-    sem_post(sem_viewer);
-    sem_close(sem);
-    sem_close(sem_viewer);
+    char * shm_buf = mmap(NULL, shm_info->file_count * SHM_WIDTH, PROT_READ, MAP_SHARED, buf_fd, 0);
+    close(buf_fd);
+    if (shm_buf == MAP_FAILED){
+        perror("mmap buf");
+        munmap(shm_info, sizeof(SharedMemInfo));
+        return 1;
+    }
 
+    for (int i = 0; i < shm_info->file_count; i++)
+    {
+        sem_wait(&shm_info->sem_buf);
+        dprintf(STDOUT_FILENO, "%s", shm_buf + (i * SHM_WIDTH));
+    }
 
-    //printf("VIEWER\n");
+    sem_post(&shm_info->sem_viewer);
+
     return 0;
 }
 

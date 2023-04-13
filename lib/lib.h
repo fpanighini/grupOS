@@ -8,27 +8,24 @@
 #define MD5_LEN 32
 #define PID_LEN 5
 #define EXTRA_CHARS 7
+
 #define PATH_MAX 4096
-#define ARG_MAX 2097152
-#define FILES_MAX ((ARG_MAX) / (PATH_MAX))
 
 #define READ_END 0
 #define WRITE_END 1
-#define SHAREMEM_WAIT 2
 
-#define SHARED_MEM_NAME "/shared_memory"
-#define SHARED_MEM_BUF_NAME "/shared_memory_buf"
+#define VIEWER_WAIT 2
+
 #define SHM_WIDTH (MD5_LEN + PATH_MAX + PID_LEN + EXTRA_CHARS)
+#define SHM_PATH "/dev/shm/XXXXXX"
+#define SHM_PATH_LEN 16
 
-#define SEMAPHORE_NAME_READ_BUFFER "/shared_memory_semaphore_read_buffer"
-#define SEMAPHORE_NAME_VIEWER "/shared_memory_semaphore_viewer"
-
-#define MEM_ERROR ((char *) -1)
-
-typedef struct Shm_s {
-    int * size;
-    char * buf;
-} Shm_t;
+typedef struct SharedMemInfo {
+    int file_count;
+    char buf_path[SHM_PATH_LEN];
+    sem_t sem_viewer;
+    sem_t sem_buf;
+} SharedMemInfo;
 
 void close_pipe(int pipe_fd[2]);
 
