@@ -1,5 +1,5 @@
 CC = gcc
-FLAG_INC =-pthread -lrt -g -Wall -Werror
+FLAG_INC =-pthread -lrt -g -Wall -Wextra -Werror -std=gnu11
 
 all: app worker viewer
 
