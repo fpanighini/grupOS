@@ -133,6 +133,7 @@ int main(int argc, char const *argv[])
 
     while (args_read < argc)
     {
+        printf("while start\n");
         fd_num = select(workers[WORKERS_MAX - 1].pipe_read + 1, &read_workers, NULL, NULL, NULL);
 
         if (fd_num == -1)
@@ -159,12 +160,14 @@ int main(int argc, char const *argv[])
                 if (arg_counter < argc)
                 {
                     dprintf(workers[j].pipe_write, "%s\n", argv[arg_counter++]);
-                    fd_num--;
                 }
+                fd_num--;
             }
         }
+        printf("while end\n");
         read_workers = aux;
     }
+    printf("end\n");
     free(buffer);
     fclose(output_file);
 
