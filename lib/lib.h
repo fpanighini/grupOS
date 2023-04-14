@@ -15,6 +15,7 @@
 #define WRITE_END 1
 
 #define VIEWER_WAIT 2
+#define CANCEL ((char) 24)
 
 #define SHM_WIDTH (MD5_LEN + PATH_MAX + PID_LEN + EXTRA_CHARS)
 #define SHM_PATH "/dev/shm/XXXXXX"

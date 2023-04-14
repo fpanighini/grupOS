@@ -19,12 +19,14 @@ int main(int argc, char const *argv[])
     int info_fd = mkstemp(info_path);
     if (info_fd == -1){
         perror("mkstemp info");
+        workers_free(workers, WORKERS_MAX);
         return 1;
     }
 
     if (ftruncate(info_fd, sizeof(SharedMemInfo)) == -1)
     {
         perror("ftruncate info");
+        workers_free(workers, WORKERS_MAX);
         close(info_fd);
         return 1;
     }
@@ -34,6 +36,7 @@ int main(int argc, char const *argv[])
     if (shm_info == MAP_FAILED)
     {
         perror("mmap info");
+        workers_free(workers, WORKERS_MAX);
         return 1;
     }
 
@@ -43,6 +46,7 @@ int main(int argc, char const *argv[])
     if (buf_fd == -1){
         perror("mkstemp buf");
         munmap(shm_info, sizeof(SharedMemInfo));
+        workers_free(workers, WORKERS_MAX);
         return 1;
     }
 
@@ -50,6 +54,8 @@ int main(int argc, char const *argv[])
     {
         perror("ftruncate buf");
         close(buf_fd);
+        munmap(shm_info, sizeof(SharedMemInfo));
+        workers_free(workers, WORKERS_MAX);
         return 1;
     }
 
@@ -57,7 +63,9 @@ int main(int argc, char const *argv[])
     close(buf_fd);
     if (shm_buf == MAP_FAILED){
         perror("mmap buf");
+        close(buf_fd);
         munmap(shm_info, sizeof(SharedMemInfo));
+        workers_free(workers, WORKERS_MAX);
         return 1;
     }
 
@@ -65,28 +73,46 @@ int main(int argc, char const *argv[])
     if (sem_init(&shm_info->sem_viewer, 1, 1) == -1)
     {
         munmap(shm_buf, (argc - 1) * SHM_WIDTH);
+        close(buf_fd);
         munmap(shm_info, sizeof(SharedMemInfo));
+        workers_free(workers, WORKERS_MAX);
         return 1;
     }
+
+    // sem_post(&shm_info->sem_viewer);
+
     if (sem_init(&shm_info->sem_buf, 1, 0) == -1)
     {
         sem_destroy(&shm_info->sem_viewer);
         munmap(shm_buf, (argc - 1) * SHM_WIDTH);
+        close(buf_fd);
         munmap(shm_info, sizeof(SharedMemInfo));
+        workers_free(workers, WORKERS_MAX);
         return 1;
     }
-    
+
     FILE * output_file = fopen(OUTPUT_PATH, "w");
     if (output_file == NULL){
-        sem_destroy(&shm_info->sem_viewer);
         sem_destroy(&shm_info->sem_buf);
+        sem_destroy(&shm_info->sem_viewer);
         munmap(shm_buf, (argc - 1) * SHM_WIDTH);
+        close(buf_fd);
         munmap(shm_info, sizeof(SharedMemInfo));
+        workers_free(workers, WORKERS_MAX);
         return 1;
     }
 
     printf("%s", info_path);
-    fflush(stdout);
+    if (fflush(stdout) == EOF){
+        fclose(output_file);
+        sem_destroy(&shm_info->sem_buf);
+        sem_destroy(&shm_info->sem_viewer);
+        munmap(shm_buf, (argc - 1) * SHM_WIDTH);
+        close(buf_fd);
+        munmap(shm_info, sizeof(SharedMemInfo));
+        workers_free(workers, WORKERS_MAX);
+        return 1;
+    }
     sleep(VIEWER_WAIT);
 
     int arg_counter = 1;
@@ -94,7 +120,10 @@ int main(int argc, char const *argv[])
     int i;
     for (i = 0; i < WORKERS_MAX && arg_counter < argc; i++)
     {
-        dprintf(workers[i].pipe_write, "%s\n", argv[arg_counter++]);
+        int j;
+        for (j = 0 ; j < INITIAL_LOAD && arg_counter < argc ; j++){
+            dprintf(workers[i].pipe_write, "%s\n", argv[arg_counter++]);
+        }
     }
     int fd_num;
     char *buffer = NULL;
@@ -104,16 +133,22 @@ int main(int argc, char const *argv[])
 
     fd_set aux = read_workers;
 
-    // printf("ARGC: %d, ARGS_R: %d\n", argc, args_read);
     while (args_read < argc)
     {
-        while (args_read < argc && (fd_num = select(workers[WORKERS_MAX - 1].pipe_read + 1, &read_workers, NULL, NULL, NULL)) == 0)
+        while ((fd_num = select(workers[WORKERS_MAX - 1].pipe_read + 1, &read_workers, NULL, NULL, NULL)) == 0)
         {
             read_workers = aux;
         }
         if (fd_num == -1)
         {
             perror("select");
+            free(buffer);
+            fclose(output_file);
+            sem_destroy(&shm_info->sem_buf);
+            sem_destroy(&shm_info->sem_viewer);
+            munmap(shm_buf, (argc - 1) * SHM_WIDTH);
+            close(buf_fd);
+            munmap(shm_info, sizeof(SharedMemInfo));
             workers_free(workers, WORKERS_MAX);
             return 1;
         }
@@ -122,14 +157,11 @@ int main(int argc, char const *argv[])
             if (FD_ISSET(workers[j].pipe_read, &read_workers) && getline(&buffer, &n, workers[j].file_read) != -1)
             {
                 args_read++;
-                //printf("%s", buffer);
-                fprintf(output_file, "%s", buffer);
-
-                // write(shm_fd, buffer, sizeof(buffer));
-                // Write to shared mem
+                if (buffer[0] != CANCEL){
+                    fprintf(output_file, "%s", buffer);
+                }
                 strncpy(shm_buf + ((args_read - 2) * SHM_WIDTH), buffer, SHM_WIDTH);
                 sem_post(&shm_info->sem_buf);
-                // printf("%d\n", arg_counter);
                 if (arg_counter < argc)
                 {
                     dprintf(workers[j].pipe_write, "%s\n", argv[arg_counter++]);
@@ -140,15 +172,16 @@ int main(int argc, char const *argv[])
         read_workers = aux;
     }
     free(buffer);
-    workers_free(workers, WORKERS_MAX);
     fclose(output_file);
 
     sem_wait(&shm_info->sem_viewer);
 
-    sem_destroy(&shm_info->sem_viewer);
     sem_destroy(&shm_info->sem_buf);
+    sem_destroy(&shm_info->sem_viewer);
     munmap(shm_buf, (argc - 1) * SHM_WIDTH);
+    close(buf_fd);
     munmap(shm_info, sizeof(SharedMemInfo));
+    workers_free(workers, WORKERS_MAX);
 
     return 0;
 }
