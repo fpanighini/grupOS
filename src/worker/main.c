@@ -62,24 +62,15 @@ int main()
     {
         path[len - 1] = '\0';
 
-        if (md5sum(hash, path) == -1){
-            hash[0] = '\0';
-            if (dprintf(STDOUT_FILENO, "%c\n", CANCEL) < 0)
-            {
-                perror("Worker write error");
-                free(path);
-                return 1;
-            }
-        } else {
-            hash[MD5_LEN] = '\0';
-            if (dprintf(STDOUT_FILENO, "%05d - %s - %s\n", getpid(), hash, path) < 0)
-            {
-                perror("Worker write error");
-                free(path);
-                return 1;
-            }
-        }
+        md5sum(hash, path);
+        hash[MD5_LEN] = '\0';
 
+        if (dprintf(STDOUT_FILENO, "%05d - %s - %s\n", getpid(), hash, path) < 0)
+        {
+            perror("Worker write error");
+            free(path);
+            return 1;
+        }
     }
     int aux = errno;
     free(path);

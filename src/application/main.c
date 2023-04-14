@@ -8,6 +8,11 @@ int workers_free(Worker workers[], size_t count);
 
 int main(int argc, char const *argv[])
 {
+    if (argc < 2){
+        fprintf(stderr, "Not Enough Arguments\n");
+        return 1;
+    }
+
     fd_set read_workers;
     Worker workers[WORKERS_MAX];
     if (workers_spawn(workers, WORKERS_MAX, &read_workers) == -1)
@@ -63,7 +68,6 @@ int main(int argc, char const *argv[])
     close(buf_fd);
     if (shm_buf == MAP_FAILED){
         perror("mmap buf");
-        close(buf_fd);
         munmap(shm_info, sizeof(SharedMemInfo));
         workers_free(workers, WORKERS_MAX);
         return 1;
@@ -73,19 +77,15 @@ int main(int argc, char const *argv[])
     if (sem_init(&shm_info->sem_viewer, 1, 1) == -1)
     {
         munmap(shm_buf, (argc - 1) * SHM_WIDTH);
-        close(buf_fd);
         munmap(shm_info, sizeof(SharedMemInfo));
         workers_free(workers, WORKERS_MAX);
         return 1;
     }
 
-    // sem_post(&shm_info->sem_viewer);
-
     if (sem_init(&shm_info->sem_buf, 1, 0) == -1)
     {
         sem_destroy(&shm_info->sem_viewer);
         munmap(shm_buf, (argc - 1) * SHM_WIDTH);
-        close(buf_fd);
         munmap(shm_info, sizeof(SharedMemInfo));
         workers_free(workers, WORKERS_MAX);
         return 1;
@@ -96,7 +96,6 @@ int main(int argc, char const *argv[])
         sem_destroy(&shm_info->sem_buf);
         sem_destroy(&shm_info->sem_viewer);
         munmap(shm_buf, (argc - 1) * SHM_WIDTH);
-        close(buf_fd);
         munmap(shm_info, sizeof(SharedMemInfo));
         workers_free(workers, WORKERS_MAX);
         return 1;
@@ -108,7 +107,6 @@ int main(int argc, char const *argv[])
         sem_destroy(&shm_info->sem_buf);
         sem_destroy(&shm_info->sem_viewer);
         munmap(shm_buf, (argc - 1) * SHM_WIDTH);
-        close(buf_fd);
         munmap(shm_info, sizeof(SharedMemInfo));
         workers_free(workers, WORKERS_MAX);
         return 1;
@@ -135,10 +133,8 @@ int main(int argc, char const *argv[])
 
     while (args_read < argc)
     {
-        while ((fd_num = select(workers[WORKERS_MAX - 1].pipe_read + 1, &read_workers, NULL, NULL, NULL)) == 0)
-        {
-            read_workers = aux;
-        }
+        fd_num = select(workers[WORKERS_MAX - 1].pipe_read + 1, &read_workers, NULL, NULL, NULL);
+
         if (fd_num == -1)
         {
             perror("select");
@@ -147,19 +143,17 @@ int main(int argc, char const *argv[])
             sem_destroy(&shm_info->sem_buf);
             sem_destroy(&shm_info->sem_viewer);
             munmap(shm_buf, (argc - 1) * SHM_WIDTH);
-            close(buf_fd);
             munmap(shm_info, sizeof(SharedMemInfo));
             workers_free(workers, WORKERS_MAX);
             return 1;
         }
-        for (j = 0; args_read < argc && fd_num > 0 && j < WORKERS_MAX; j++)
+        for (j = 0; fd_num > 0 && j < WORKERS_MAX; j++)
         {
             if (FD_ISSET(workers[j].pipe_read, &read_workers) && getline(&buffer, &n, workers[j].file_read) != -1)
             {
                 args_read++;
-                if (buffer[0] != CANCEL){
-                    fprintf(output_file, "%s", buffer);
-                }
+                fprintf(output_file, "%s", buffer);
+
                 strncpy(shm_buf + ((args_read - 2) * SHM_WIDTH), buffer, SHM_WIDTH);
                 sem_post(&shm_info->sem_buf);
                 if (arg_counter < argc)
@@ -179,7 +173,6 @@ int main(int argc, char const *argv[])
     sem_destroy(&shm_info->sem_buf);
     sem_destroy(&shm_info->sem_viewer);
     munmap(shm_buf, (argc - 1) * SHM_WIDTH);
-    close(buf_fd);
     munmap(shm_info, sizeof(SharedMemInfo));
     workers_free(workers, WORKERS_MAX);
 
@@ -283,14 +276,14 @@ int workers_free(Worker workers[], size_t count)
     for (i = 0; i < count; i++)
     {
         close(workers[i].pipe_write);
-        // fclose(workers[i].file_read);
+        fclose(workers[i].file_read);
     }
 
     // wait for workers to finish
-    // for (size_t i = 0; i < count; i++)
-    // {
-    //     waitpid(workers[i].pid, NULL, 0);
-    // }
+    for (size_t i = 0; i < count; i++)
+    {
+        waitpid(workers[i].pid, NULL, 0);
+    }
 
 
     return 0;
