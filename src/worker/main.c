@@ -68,11 +68,11 @@ int main()
 
         if (md5sum(hash, path) == -1)
         {
-            memset(hash, '0', MD5_LEN);
+            memset(hash, HASH_ERROR_CHAR, MD5_LEN);
         }
         hash[MD5_LEN] = '\0';
 
-        int write_len = sprintf(buf, "%05d - %s - %s\n", getpid(), hash, path);
+        int write_len = sprintf(buf, WORKER_MESSAGE_FORMAT , getpid(), hash, path);
         if (write(STDOUT_FILENO, &write_len, sizeof(int)) != sizeof(int) || write(STDOUT_FILENO, buf, write_len) != write_len)
         {
             perror("Worker write error");

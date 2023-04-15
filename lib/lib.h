@@ -24,6 +24,9 @@
 #define SHM_TEMPLATE "/dev/shm/XXXXXX"
 #define SHM_PATH_LEN 16
 
+#define WORKER_MESSAGE_FORMAT "%05d - %s - %s\n"
+#define HASH_ERROR_CHAR 'X'
+
 typedef struct SharedMemInfo {
     int file_count;
     char buf_path[SHM_PATH_LEN];
@@ -33,7 +36,7 @@ typedef struct SharedMemInfo {
 
 void close_pipe(int pipe_fd[2]);
 
-int create_shm(char *template, SharedMemInfo **shm_info_ref, char **shm_buf_ref, int file_count);
+int create_shm(char *path_template, SharedMemInfo **shm_info_ref, char **shm_buf_ref, int file_count);
 void destroy_shm(SharedMemInfo *shm_info, char *shm_buf);
 
 int open_shm(const char * path, SharedMemInfo **shm_info_ref, char **shm_buf_ref);

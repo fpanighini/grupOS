@@ -9,14 +9,14 @@ void close_pipe(int pipe_fd[2])
     close(pipe_fd[STDIN_FILENO]);
 }
 
-int create_shm(char *template, SharedMemInfo **shm_info_ref, char **shm_buf_ref, int file_count)
+int create_shm(char *path_template, SharedMemInfo **shm_info_ref, char **shm_buf_ref, int file_count)
 {
     if (file_count <= 0)
     {
         return -1;
     }
 
-    int info_fd = mkstemp(template);
+    int info_fd = mkstemp(path_template);
     if (info_fd == -1)
     {
         return -1;
