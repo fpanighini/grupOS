@@ -2,8 +2,11 @@
 #define LIB_H
 
 #include <unistd.h>
-#include <stdio.h>
 #include <semaphore.h>
+#include <stdlib.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <string.h>
 
 #define MD5_LEN 32
 #define PID_LEN 5
@@ -18,7 +21,7 @@
 #define CANCEL ((char) 24)
 
 #define SHM_WIDTH (MD5_LEN + PATH_MAX + PID_LEN + EXTRA_CHARS)
-#define SHM_PATH "/dev/shm/XXXXXX"
+#define SHM_TEMPLATE "/dev/shm/XXXXXX"
 #define SHM_PATH_LEN 16
 
 typedef struct SharedMemInfo {
@@ -29,5 +32,11 @@ typedef struct SharedMemInfo {
 } SharedMemInfo;
 
 void close_pipe(int pipe_fd[2]);
+
+int create_shm(char *template, SharedMemInfo **shm_info_ref, char **shm_buf_ref, int file_count);
+void destroy_shm(SharedMemInfo *shm_info, char *shm_buf);
+
+int open_shm(const char * path, SharedMemInfo **shm_info_ref, char **shm_buf_ref);
+void close_shm(SharedMemInfo *shm_info, char *shm_buf);
 
 #endif

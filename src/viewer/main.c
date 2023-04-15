@@ -1,76 +1,45 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
+
 #include "viewer.h"
-#include <unistd.h>
+#include <stdio.h>
 
 int main(int argc, char const *argv[])
 {
-    int fd_info;
-    if (argc < 2){
-        char shm_path[SHM_PATH_LEN];
+    char shm_path[SHM_PATH_LEN];
+    if (argc < 2)
+    {
         read(0, shm_path, SHM_PATH_LEN);
-        shm_path[SHM_PATH_LEN - 1] = '\0';
-        fd_info = open(shm_path, O_RDWR);
     }
-    else if (argc == 2) {
-        fd_info = open(argv[1], O_RDWR);
+    else if (argc == 2)
+    {
+        strncpy(shm_path, argv[1], SHM_PATH_LEN);
     }
     else
     {
-        perror("Incorrect number of arguments");
+        fprintf(stderr, "Too many arguments\n");
         return 1;
     }
+    
+    shm_path[SHM_PATH_LEN - 1] = '\0';
 
-    if (fd_info == -1){
-        perror("open info");
-        return -1;
-    }
-
-    SharedMemInfo * shm_info = mmap(NULL, sizeof(SharedMemInfo), PROT_READ | PROT_WRITE, MAP_SHARED, fd_info, 0);
-    close(fd_info);
-    if (shm_info == MAP_FAILED)
+    SharedMemInfo *shm_info;
+    char *shm_buf;
+    if (open_shm(shm_path, &shm_info, &shm_buf) == -1)
     {
-        perror("mmap info");
-        close(fd_info);
-        return 1;
-    }
-
-    if (sem_trywait(&shm_info->sem_viewer) == -1)
-    {
-        perror("application unavailable");
-        close(fd_info);
-        munmap(shm_info, sizeof(SharedMemInfo));
-        return 1;
-    }
-
-    int buf_fd = open(shm_info->buf_path, O_RDONLY);
-    if (buf_fd == -1){
-        perror("open buf");
-        close(fd_info);
-        munmap(shm_info, sizeof(SharedMemInfo));
-        return -1;
-    }
-
-    char * shm_buf = mmap(NULL, shm_info->file_count * SHM_WIDTH, PROT_READ, MAP_SHARED, buf_fd, 0);
-    close(buf_fd);
-    if (shm_buf == MAP_FAILED){
-        perror("mmap buf");
-        close(buf_fd);
-        close(fd_info);
-        munmap(shm_info, sizeof(SharedMemInfo));
+        fprintf(stderr, "Failed to open shared memory\n");
         return 1;
     }
 
     for (int i = 0; i < shm_info->file_count; i++)
     {
         sem_wait(&shm_info->sem_buf);
-        dprintf(STDOUT_FILENO, "%s", shm_buf + (i * SHM_WIDTH));
+        dprintf(STDOUT_FILENO, "%s\n", shm_buf + (i * SHM_WIDTH));
     }
 
     sem_post(&shm_info->sem_viewer);
 
-    close(buf_fd);
-    close(fd_info);
-    munmap(shm_buf,shm_info->file_count * SHM_WIDTH);
-    munmap(shm_info, sizeof(SharedMemInfo));
+    close_shm(shm_info, shm_buf);
 
     return 0;
 }

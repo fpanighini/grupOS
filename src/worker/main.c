@@ -1,3 +1,6 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
+
 #include <unistd.h>
 #include <sys/wait.h>
 #include <string.h>
@@ -55,17 +58,22 @@ int md5sum(char *hash, char *const path)
 int main()
 {
     char hash[MD5_LEN + 1];
+    char buf[SHM_WIDTH];
     char *path = NULL;
-    ssize_t len;
+    ssize_t read_len;
     size_t n = 0;
-    while ((len = getline(&path, &n, stdin)) > 0)
+    while ((read_len = getline(&path, &n, stdin)) > 0)
     {
-        path[len - 1] = '\0';
+        path[read_len - 1] = '\0';
 
-        md5sum(hash, path);
+        if (md5sum(hash, path) == -1)
+        {
+            memset(hash, '0', MD5_LEN);
+        }
         hash[MD5_LEN] = '\0';
 
-        if (dprintf(STDOUT_FILENO, "%05d - %s - %s\n", getpid(), hash, path) < 0)
+        int write_len = sprintf(buf, "%05d - %s - %s\n", getpid(), hash, path);
+        if (write(STDOUT_FILENO, &write_len, sizeof(int)) != sizeof(int) || write(STDOUT_FILENO, buf, write_len) != write_len)
         {
             perror("Worker write error");
             free(path);
@@ -75,7 +83,7 @@ int main()
     int aux = errno;
     free(path);
 
-    if (len == -1 && (aux == EINVAL || aux == ENOMEM))
+    if (read_len == -1 && (aux == EINVAL || aux == ENOMEM))
     {
         perror("Worker read error");
         return 1;

@@ -14,7 +14,4 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-char * create_mem();
-int destroy_mem(char * shared_mem);
-
 #endif // VIEWER_H

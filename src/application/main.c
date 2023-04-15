@@ -1,293 +1,136 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
+
 #include "application.h"
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 
-int workers_spawn(Worker workers[], size_t count, fd_set *read_workers);
+#define MIN(x, y) ((x) < (y) ? (x) : (y))
 
-int workers_free(Worker workers[], size_t count);
+int clamp(int x, int min, int max);
 
 int main(int argc, char const *argv[])
 {
-    if (argc < 2){
-        fprintf(stderr, "Not Enough Arguments\n");
+    if (argc < 2)
+    {
+        dprintf(STDERR_FILENO, "Not Enough Arguments\n");
         return 1;
     }
 
     fd_set read_workers;
     Worker workers[WORKERS_MAX];
-    if (workers_spawn(workers, WORKERS_MAX, &read_workers) == -1)
+    size_t workers_load[WORKERS_MAX] = {0};
+    size_t workers_count = clamp((argc - 1) / INITIAL_LOAD, 1, WORKERS_MAX);
+    if (workers_spawn(workers, workers_count, &read_workers) == -1)
     {
         return 1;
     }
 
-    char info_path[SHM_PATH_LEN] = SHM_PATH;
-    int info_fd = mkstemp(info_path);
-    if (info_fd == -1){
-        perror("mkstemp info");
-        workers_free(workers, WORKERS_MAX);
-        return 1;
-    }
-
-    if (ftruncate(info_fd, sizeof(SharedMemInfo)) == -1)
+    char info_path[SHM_PATH_LEN] = SHM_TEMPLATE;
+    SharedMemInfo *shm_info;
+    char *shm_buf;
+    if (create_shm(info_path, &shm_info, &shm_buf, argc - 1) == -1)
     {
-        perror("ftruncate info");
-        workers_free(workers, WORKERS_MAX);
-        close(info_fd);
+        workers_free(workers, workers_count);
         return 1;
     }
 
-    SharedMemInfo * shm_info = mmap(NULL, sizeof(SharedMemInfo), PROT_READ | PROT_WRITE, MAP_SHARED, info_fd, 0);
-    close(info_fd);
-    if (shm_info == MAP_FAILED)
+    FILE *output_file = fopen(OUTPUT_PATH, "w");
+    if (output_file == NULL)
     {
-        perror("mmap info");
-        workers_free(workers, WORKERS_MAX);
+        destroy_shm(shm_info, shm_buf);
+        workers_free(workers, workers_count);
         return 1;
     }
 
-    shm_info->file_count = argc - 1;
-    strncpy(shm_info->buf_path, SHM_PATH, SHM_PATH_LEN);
-    int buf_fd = mkstemp(shm_info->buf_path);
-    if (buf_fd == -1){
-        perror("mkstemp buf");
-        munmap(shm_info, sizeof(SharedMemInfo));
-        workers_free(workers, WORKERS_MAX);
-        return 1;
-    }
-
-    if (ftruncate(buf_fd, (argc - 1) * SHM_WIDTH) == -1)
-    {
-        perror("ftruncate buf");
-        close(buf_fd);
-        munmap(shm_info, sizeof(SharedMemInfo));
-        workers_free(workers, WORKERS_MAX);
-        return 1;
-    }
-
-    char * shm_buf = mmap(NULL, shm_info->file_count * SHM_WIDTH, PROT_READ | PROT_WRITE, MAP_SHARED, buf_fd, 0);
-    close(buf_fd);
-    if (shm_buf == MAP_FAILED){
-        perror("mmap buf");
-        munmap(shm_info, sizeof(SharedMemInfo));
-        workers_free(workers, WORKERS_MAX);
-        return 1;
-    }
-
-    shm_info->file_count = argc - 1;
-    if (sem_init(&shm_info->sem_viewer, 1, 1) == -1)
-    {
-        munmap(shm_buf, (argc - 1) * SHM_WIDTH);
-        munmap(shm_info, sizeof(SharedMemInfo));
-        workers_free(workers, WORKERS_MAX);
-        return 1;
-    }
-
-    if (sem_init(&shm_info->sem_buf, 1, 0) == -1)
-    {
-        sem_destroy(&shm_info->sem_viewer);
-        munmap(shm_buf, (argc - 1) * SHM_WIDTH);
-        munmap(shm_info, sizeof(SharedMemInfo));
-        workers_free(workers, WORKERS_MAX);
-        return 1;
-    }
-
-    FILE * output_file = fopen(OUTPUT_PATH, "w");
-    if (output_file == NULL){
-        sem_destroy(&shm_info->sem_buf);
-        sem_destroy(&shm_info->sem_viewer);
-        munmap(shm_buf, (argc - 1) * SHM_WIDTH);
-        munmap(shm_info, sizeof(SharedMemInfo));
-        workers_free(workers, WORKERS_MAX);
-        return 1;
-    }
-
-    printf("%s", info_path);
-    if (fflush(stdout) == EOF){
-        fclose(output_file);
-        sem_destroy(&shm_info->sem_buf);
-        sem_destroy(&shm_info->sem_viewer);
-        munmap(shm_buf, (argc - 1) * SHM_WIDTH);
-        munmap(shm_info, sizeof(SharedMemInfo));
-        workers_free(workers, WORKERS_MAX);
-        return 1;
-    }
+    dprintf(STDOUT_FILENO, "%s", info_path);
     sleep(VIEWER_WAIT);
 
-    int arg_counter = 1;
-    int args_read = 1;
-    int i;
-    for (i = 0; i < WORKERS_MAX && arg_counter < argc; i++)
+    int arg_i;
+    int initial_count = MIN((int) workers_count * INITIAL_LOAD, (argc - 1));
+    for (arg_i = 1; arg_i < (initial_count + 1); arg_i++)
     {
-        int j;
-        for (j = 0 ; j < INITIAL_LOAD && arg_counter < argc ; j++){
-            dprintf(workers[i].pipe_write, "%s\n", argv[arg_counter++]);
-        }
+        int worker_id = (arg_i - 1) / INITIAL_LOAD;
+        dprintf(workers[worker_id].pipe_write, "%s\n", argv[arg_i]);
+        workers_load[worker_id]++;
     }
-    int fd_num;
-    char *buffer = NULL;
-    size_t n = 0;
 
-    int j;
-
-    fd_set aux = read_workers;
-
-    while (args_read < argc)
+    size_t shm_i = 0;
+    char buffer[SHM_WIDTH];
+    int workers_active = workers_count;
+    while (workers_active > 0)
     {
-        printf("while start\n");
-        fd_num = select(workers[WORKERS_MAX - 1].pipe_read + 1, &read_workers, NULL, NULL, NULL);
-
-        if (fd_num == -1)
+        fd_set result = read_workers;
+        int fds_available = select(workers[workers_count - 1].pipe_read + 1, &result, NULL, NULL, NULL);
+        if (fds_available == -1)
         {
             perror("select");
-            free(buffer);
             fclose(output_file);
-            sem_destroy(&shm_info->sem_buf);
-            sem_destroy(&shm_info->sem_viewer);
-            munmap(shm_buf, (argc - 1) * SHM_WIDTH);
-            munmap(shm_info, sizeof(SharedMemInfo));
-            workers_free(workers, WORKERS_MAX);
+            destroy_shm(shm_info, shm_buf);
+            workers_free(workers, workers_count);
             return 1;
         }
-        for (j = 0; fd_num > 0 && j < WORKERS_MAX; j++)
+        size_t i;
+        for (i = 0; i < workers_count && fds_available > 0; i++)
         {
-            if (FD_ISSET(workers[j].pipe_read, &read_workers) && getline(&buffer, &n, workers[j].file_read) != -1)
+            if (FD_ISSET(workers[i].pipe_read, &result))
             {
-                args_read++;
-                fprintf(output_file, "%s", buffer);
-
-                strncpy(shm_buf + ((args_read - 2) * SHM_WIDTH), buffer, SHM_WIDTH);
-                sem_post(&shm_info->sem_buf);
-                if (arg_counter < argc)
+                int chars_read;
+                if (read(workers[i].pipe_read, &chars_read, sizeof(int)) != sizeof(int) || read(workers[i].pipe_read, buffer, chars_read) != chars_read)
                 {
-                    dprintf(workers[j].pipe_write, "%s\n", argv[arg_counter++]);
+                    perror("read");
+                    fclose(output_file);
+                    destroy_shm(shm_info, shm_buf);
+                    workers_free(workers, workers_count);
+                    return 1;
                 }
-                fd_num--;
+                buffer[chars_read - 1] = '\0';
+                workers_load[i]--;
+
+                fprintf(output_file, "%s\n", buffer);
+
+                strncpy(shm_buf + (shm_i * SHM_WIDTH), buffer, chars_read);
+                shm_i++;
+                sem_post(&shm_info->sem_buf);
+
+                if (workers_load[i] == 0)
+                {
+                    if (arg_i < argc)
+                    {
+                        dprintf(workers[i].pipe_write, "%s\n", argv[arg_i]);
+                        arg_i++;
+                        workers_load[i]++;
+                    }
+                    else
+                    {
+                        FD_CLR(workers[i].pipe_read, &read_workers);
+                        workers_active--;
+                    }
+                }
+                fds_available--;
             }
         }
-        printf("while end\n");
-        read_workers = aux;
     }
-    printf("end\n");
-    free(buffer);
     fclose(output_file);
 
     sem_wait(&shm_info->sem_viewer);
 
-    sem_destroy(&shm_info->sem_buf);
-    sem_destroy(&shm_info->sem_viewer);
-    munmap(shm_buf, (argc - 1) * SHM_WIDTH);
-    munmap(shm_info, sizeof(SharedMemInfo));
-    workers_free(workers, WORKERS_MAX);
+    destroy_shm(shm_info, shm_buf);
+    workers_free(workers, workers_count);
 
     return 0;
 }
 
-int workers_spawn(Worker workers[], size_t count, fd_set *read_workers)
+int clamp(int x, int min, int max)
 {
-    if (count > WORKERS_MAX)
+    if (x < min)
     {
-        return -1;
+        return min;
     }
-
-    // open pipes
-    int pipes_path[WORKERS_MAX][2];
-    int pipes_hash[WORKERS_MAX][2];
-    size_t i;
-    for (i = 0; i < count; i++)
+    if (x > max)
     {
-        if (pipe(pipes_path[i]) == -1)
-        {
-            close_pipes(pipes_path, i);
-            close_pipes(pipes_hash, i);
-            return -1;
-        }
-        if (pipe(pipes_hash[i]) == -1)
-        {
-            close_pipes(pipes_path, i + 1);
-            close_pipes(pipes_hash, i);
-            return -1;
-        }
+        return max;
     }
-
-    // fork workers
-    int cpid[WORKERS_MAX];
-    for (i = 0; i < count; i++)
-    {
-        cpid[i] = fork();
-        if (cpid[i] == -1)
-        {
-            close_pipes(pipes_path, count);
-            close_pipes(pipes_hash, count);
-            return -1;
-        }
-
-        // child code
-        if (cpid[i] == 0)
-        {
-            if (dup2(pipes_path[i][READ_END], STDIN_FILENO) == -1 || dup2(pipes_hash[i][WRITE_END], STDOUT_FILENO) == -1)
-            {
-                _exit(1);
-            }
-            close_pipes(pipes_path, count);
-            close_pipes(pipes_hash, count);
-            char *const argv[2] = {WORKER_NAME, NULL};
-            execv(WORKER_PATH, argv);
-            perror("EXECV ERROR");
-            _exit(1);
-        }
-    }
-
-    // open files
-    FILE *files_hash[WORKERS_MAX];
-    for (i = 0; i < count; i++)
-    {
-        files_hash[i] = fdopen(pipes_hash[i][READ_END], "r");
-        if (files_hash[i] == NULL)
-        {
-            close_files(files_hash, i);
-            close_pipes(pipes_path, count);
-            close_pipes(pipes_hash + i, count - i);
-            return -1;
-        }
-    }
-
-    // success: write data
-    FD_ZERO(read_workers);
-    for (i = 0; i < count; i++)
-    {
-        close(pipes_path[i][READ_END]);
-        close(pipes_hash[i][WRITE_END]);
-        workers[i].pid = cpid[i];
-        workers[i].pipe_write = pipes_path[i][WRITE_END];
-        workers[i].pipe_read = pipes_hash[i][READ_END];
-        workers[i].file_read = files_hash[i];
-        FD_SET(workers[i].pipe_read, read_workers);
-    }
-
-    return 0;
-}
-
-int workers_free(Worker workers[], size_t count)
-{
-    if (count > WORKERS_MAX)
-    {
-        return -1;
-    }
-
-    // close pipes
-    size_t i;
-    for (i = 0; i < count; i++)
-    {
-        close(workers[i].pipe_write);
-        fclose(workers[i].file_read);
-    }
-
-    // wait for workers to finish
-    for (size_t i = 0; i < count; i++)
-    {
-        waitpid(workers[i].pid, NULL, 0);
-    }
-
-
-    return 0;
+    return x;
 }
