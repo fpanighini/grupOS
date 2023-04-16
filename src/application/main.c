@@ -113,6 +113,8 @@ int main(int argc, char const *argv[])
             }
         }
     }
+    free(buffer);
+
     fclose(output_file);
 
     sem_wait(&shm_info->sem_viewer);
