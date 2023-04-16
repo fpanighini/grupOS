@@ -8,7 +8,16 @@ It consists of three programs, the application, the worker and the viewer.
 The application handles the creation of worker processes that run simultaneously as children.
 The application sends through pipes the path of the files and the workers perform the hash, sending it back through another pipe.
 
-To view the results live, the viewer application reads from a shared memory buffer, and it prints it though standard output.
+To view the results live, the viewer application reads from a shared memory buffer, and it prints it through standard output.
+
+## Prerequisites
+
+The compilation of the program is done in the agodio/itba-so:1.0 docker image.
+To install the image use:
+
+```bash
+$ docker pull agodio/itba-so:1.0
+```
 
 ## Compilation
 
@@ -88,7 +97,7 @@ All the programs run from the main project directory (Directory where the projec
 
 The worker performs the md5sum hashing by forking processes.
 It will receive from standard input an existing file name and it will return its process id, the hash of the file and the file path through standard output.
-The program will stop once it receives and end of file (CTRL + D)
+The program will stop once it receives an end of file (CTRL + D)
 
 The program will run with the following command:
 
@@ -169,6 +178,13 @@ It will return a non zero value if an error occurred.
 #### Errors
 
 MEMORY_ERROR
+
+## Authors
+
+![Perri Lucas](https://github.com/lperri5)
+![Panighini Franco](https://github.com/fpanighini)
+![Rivas Santiago](https://github.com/Santiago-Rivas)
+
 
 
 

@@ -1,5 +1,5 @@
 CC = gcc
-FLAG_INC =-pthread -lrt -g -Wall -Wextra -Werror -std=gnu11
+FLAG_INC =-pthread -g -Wall -Wextra -Werror -std=gnu11
 
 all: app worker viewer
 
@@ -10,7 +10,7 @@ app:
 
 worker:
 	mkdir -p bin/
-	$(CC) src/worker/*.c lib/*.h lib/*.c -o bin/worker $(FLAG_INC)
+	$(CC) src/worker/*.c src/worker/*.h lib/*.h lib/*.c -o bin/worker $(FLAG_INC)
 
 
 viewer:

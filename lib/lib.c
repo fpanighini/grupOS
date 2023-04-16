@@ -111,6 +111,7 @@ int open_shm(const char *path, SharedMemInfo **shm_info_ref, char **shm_buf_ref)
     int buf_fd = open(shm_info->buf_path, O_RDONLY);
     if (buf_fd == -1)
     {
+        sem_post(&shm_info->sem_viewer);
         munmap(shm_info, sizeof(SharedMemInfo));
         return -1;
     }
@@ -119,6 +120,7 @@ int open_shm(const char *path, SharedMemInfo **shm_info_ref, char **shm_buf_ref)
     close(buf_fd);
     if (shm_buf == MAP_FAILED)
     {
+        sem_post(&shm_info->sem_viewer);
         munmap(shm_info, sizeof(SharedMemInfo));
         return -1;
     }
