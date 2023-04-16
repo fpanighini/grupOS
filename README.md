@@ -2,13 +2,13 @@
 
 ## About
 
-The projects objective is to paralelize the process of hashing files through the use of the md5sum hashing algorithm.
+The project's objective is to perform the md5sum hashing algorithm on multiple files at the same time taking advantage of multiprocessing.
 It consists of three programs, the application, the worker and the viewer.
 
-The application handles the creaetion of worker processes that run simultaneously as childs.
-The application sends through pipes the path of the files and the workers perform the hash, sending it back throguh another pipe.
+The application handles the creation of worker processes that run simultaneously as children.
+The application sends through pipes the path of the files and the workers perform the hash, sending it back through another pipe.
 
-To view the results live, the viewer application reads from a shared memeory buffer, and it prints it though standard output.
+To view the results live, the viewer application reads from a shared memory buffer, and it prints it though standard output.
 
 ## Compilation
 
@@ -18,7 +18,7 @@ To view the results live, the viewer application reads from a shared memeory buf
 $ git clone https://github.com/Santiago-Rivas/grupOS
 ```
 
-or
+Or
 
 ```bash
 $ unzip grupOS.zip
@@ -36,7 +36,7 @@ $ cd grupOS
 $ make all
 ```
 
-Each program can be compiled seperately using make and the name of the program.
+Each program can be compiled separately using make and the name of the program.
 
 ### Worker
 
@@ -66,7 +66,7 @@ $ make viewer
 
 ### All
 
-To make the worker, the application and the viewer. run the following command:
+To make the worker, the application and the viewer run the following command:
 
 ```bash
 $ make all
@@ -96,7 +96,7 @@ The program will run with the following command:
 $ ./bin/worker
 ```
 
-#### Error
+#### Errors
 
 When the worker receives the path of a file that does not exit, it will show an error message and it will return through standard output its process id, 32 characters of the letter 'X' and the file path that was not found.
 The worker program will not finish, it will continue to receive through standard input file paths and it will function as normal until the EOF signal is received.
@@ -104,7 +104,7 @@ The worker program will not finish, it will continue to receive through standard
 ### Application
 
 The application will receive by parameter the list of all the file paths for it to calculate the md5sum hash.
-The application will print though standard output a code that the viewer process will require to view the shared memeory of the application program.
+The application will print though standard output a code that the viewer process will require to view the shared memory of the application program.
 It will wait a set amount of time (2 seconds) for a viewer program to start.
 In any case after set time, it will continue running.
 The application will finish once all the file paths are processed by worker applications.
@@ -126,7 +126,7 @@ $ ./bin/application BIG/*
 #### Return
 
 The application will return 0 if everything happened as expected.
-It will return a non zero value if an error occured.
+It will return a non zero value if an error occurred.
 
 #### Errors
 
@@ -134,7 +134,7 @@ MEMORY_ERROR
 
 ### Viewer
 
-The viewer program reads shared memory rceated by the application and it will print it to standard output.
+The viewer program reads shared memory created by the application and it will print it to standard output.
 To connect to said shared memory, it requires the code printed by the application.
 This code may be received as a parameter or through standard input.
 The viewer will print all of the results even if they were processed before it started running.
@@ -146,7 +146,7 @@ The program will run with the following command:
 $ ./bin/viewer [code]
 ```
 
-or
+Or
 
 ```bash
 $ ./bin/viewer
@@ -164,7 +164,7 @@ $ ./bin/application BIG/* | ./bin/viewer
 #### Return
 
 The viewer will return 0 if everything happened as expected.
-It will return a non zero value if an error occured.
+It will return a non zero value if an error occurred.
 
 #### Errors
 
