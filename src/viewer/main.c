@@ -20,7 +20,7 @@ int main(int argc, char const *argv[])
         fprintf(stderr, "Too many arguments\n");
         return 1;
     }
-    
+
     shm_path[SHM_PATH_LEN - 1] = '\0';
 
     SharedMemInfo *shm_info;
