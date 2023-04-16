@@ -57,7 +57,8 @@ int main(int argc, char const *argv[])
     }
 
     size_t shm_i = 0;
-    char buffer[SHM_WIDTH];
+    char *buffer = NULL;
+    size_t n = 0;
     int workers_active = workers_count;
     while (workers_active > 0)
     {
@@ -76,19 +77,19 @@ int main(int argc, char const *argv[])
         {
             if (FD_ISSET(workers[i].pipe_read, &result))
             {
-                int chars_read;
-                if (read(workers[i].pipe_read, &chars_read, sizeof(int)) != sizeof(int) || read(workers[i].pipe_read, buffer, chars_read) != chars_read)
+                int chars_read = getline(&buffer, &n, workers[i].file_read);
+                if (chars_read == -1)
                 {
                     perror("read");
+                    free(buffer);
                     fclose(output_file);
                     destroy_shm(shm_info, shm_buf);
                     workers_free(workers, workers_count);
                     return 1;
                 }
-                buffer[chars_read - 1] = '\0';
                 workers_load[i]--;
 
-                fprintf(output_file, "%s\n", buffer);
+                fprintf(output_file, "%s", buffer);
 
                 strncpy(shm_buf + (shm_i * SHM_WIDTH), buffer, chars_read);
                 shm_i++;

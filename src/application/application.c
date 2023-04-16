@@ -12,6 +12,15 @@ void close_pipes(int pipe_fds[][2], size_t count)
     }
 }
 
+void close_files(FILE *files[], size_t count)
+{
+    size_t i;
+    for (i = 0; i < count; i++)
+    {
+        fclose(files[i]);
+    }
+}
+
 int workers_spawn(Worker workers[], size_t count, fd_set *read_workers)
 {
     if (count > WORKERS_MAX)
@@ -67,6 +76,21 @@ int workers_spawn(Worker workers[], size_t count, fd_set *read_workers)
         }
     }
 
+    // open files
+    FILE *files_hash[WORKERS_MAX];
+    for (i = 0; i < count; i++)
+    {
+        files_hash[i] = fdopen(pipes_hash[i][READ_END], "r");
+        if (files_hash[i] == NULL)
+        {
+            close_files(files_hash, i);
+            close_pipes(pipes_path, count);
+            close_pipes(pipes_hash + i, count - i);
+            return -1;
+        }
+        setbuf(files_hash[i], NULL);
+    }
+
     // success: write data
     FD_ZERO(read_workers);
     for (i = 0; i < count; i++)
@@ -76,6 +100,7 @@ int workers_spawn(Worker workers[], size_t count, fd_set *read_workers)
         workers[i].pid = cpid[i];
         workers[i].pipe_write = pipes_path[i][WRITE_END];
         workers[i].pipe_read = pipes_hash[i][READ_END];
+        workers[i].file_read = files_hash[i];
         FD_SET(workers[i].pipe_read, read_workers);
     }
 
@@ -94,7 +119,8 @@ int workers_free(Worker workers[], size_t count)
     for (i = 0; i < count; i++)
     {
         close(workers[i].pipe_write);
-        close(workers[i].pipe_read);
+        // close(workers[i].pipe_read);
+        fclose(workers[i].file_read);
     }
 
     // wait for workers to finish
