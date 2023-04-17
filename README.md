@@ -107,7 +107,7 @@ $ ./bin/worker
 
 #### Errors
 
-When the worker receives the path of a file that does not exit, it will show an error message and it will return through standard output its process id, 32 characters of the letter 'X' and the file path that was not found.
+When the worker receives the path of a file that does not exist, it will show an error message and it will return through standard output its process id, 32 characters of the letter 'X' and the file path that was not found.
 The worker program will not finish, it will continue to receive through standard input file paths and it will function as normal until the EOF signal is received.
 
 ### Application
