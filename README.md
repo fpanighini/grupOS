@@ -195,7 +195,9 @@ It will return a non zero value if an error occurred.
 ## Authors
 
 ![Perri Lucas](https://github.com/lperri5)
+
 ![Panighini Franco](https://github.com/fpanighini)
+
 ![Rivas Santiago](https://github.com/Santiago-Rivas)
 
 
