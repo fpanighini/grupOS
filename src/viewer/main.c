@@ -18,7 +18,7 @@ int main(int argc, char const *argv[])
     else
     {
         fprintf(stderr, "Too many arguments\n");
-        return 1;
+        return PARAMETER_ERROR;
     }
 
     shm_path[SHM_PATH_LEN - 1] = '\0';
@@ -28,7 +28,7 @@ int main(int argc, char const *argv[])
     if (open_shm(shm_path, &shm_info, &shm_buf) == -1)
     {
         fprintf(stderr, "Failed to open shared memory\n");
-        return 1;
+        return MEMORY_ERROR;
     }
 
     for (int i = 0; i < shm_info->file_count; i++)
@@ -41,5 +41,5 @@ int main(int argc, char const *argv[])
 
     close_shm(shm_info, shm_buf);
 
-    return 0;
+    return SUCCESS;
 }

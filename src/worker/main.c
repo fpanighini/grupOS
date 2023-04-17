@@ -23,7 +23,7 @@ int main()
         {
             perror("Worker write error");
             free(path);
-            return 1;
+            return RW_ERROR;
         }
     }
     int aux = errno;
@@ -32,8 +32,8 @@ int main()
     if (read_len == -1 && (aux == EINVAL || aux == ENOMEM))
     {
         perror("Worker read error");
-        return 1;
+        return RW_ERROR;
     }
-    return 0;
+    return SUCCESS;
 }
 

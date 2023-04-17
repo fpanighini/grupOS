@@ -14,6 +14,13 @@
 
 #define OUTPUT_PATH "output.txt"
 
+#define SUCCESS 0
+#define PARAMETER_ERROR 1
+#define MEMORY_ERROR 2
+#define SELECT_ERROR 3
+#define RW_ERROR 4
+#define FILE_ERROR 5
+
 typedef struct Worker
 {
     int pid;

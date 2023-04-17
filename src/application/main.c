@@ -15,7 +15,7 @@ int main(int argc, char const *argv[])
     if (argc < 2)
     {
         dprintf(STDERR_FILENO, "Not Enough Arguments\n");
-        return 1;
+        return PARAMETER_ERROR;
     }
 
     fd_set read_workers;
@@ -24,7 +24,7 @@ int main(int argc, char const *argv[])
     size_t workers_count = clamp((argc - 1) / INITIAL_LOAD, 1, WORKERS_MAX);
     if (workers_spawn(workers, workers_count, &read_workers) == -1)
     {
-        return 1;
+        return MEMORY_ERROR;
     }
 
     char info_path[SHM_PATH_LEN] = SHM_TEMPLATE;
@@ -33,7 +33,7 @@ int main(int argc, char const *argv[])
     if (create_shm(info_path, &shm_info, &shm_buf, argc - 1) == -1)
     {
         workers_free(workers, workers_count);
-        return 1;
+        return MEMORY_ERROR;
     }
 
     FILE *output_file = fopen(OUTPUT_PATH, "w");
@@ -41,7 +41,7 @@ int main(int argc, char const *argv[])
     {
         destroy_shm(shm_info, shm_buf);
         workers_free(workers, workers_count);
-        return 1;
+        return FILE_ERROR;
     }
 
     dprintf(STDOUT_FILENO, "%s", info_path);
@@ -70,7 +70,7 @@ int main(int argc, char const *argv[])
             fclose(output_file);
             destroy_shm(shm_info, shm_buf);
             workers_free(workers, workers_count);
-            return 1;
+            return SELECT_ERROR;
         }
         size_t i;
         for (i = 0; i < workers_count && fds_available > 0; i++)
@@ -85,7 +85,7 @@ int main(int argc, char const *argv[])
                     fclose(output_file);
                     destroy_shm(shm_info, shm_buf);
                     workers_free(workers, workers_count);
-                    return 1;
+                    return RW_ERROR;
                 }
                 workers_load[i]--;
 
@@ -122,7 +122,7 @@ int main(int argc, char const *argv[])
     destroy_shm(shm_info, shm_buf);
     workers_free(workers, workers_count);
 
-    return 0;
+    return SUCCESS;
 }
 
 int clamp(int x, int min, int max)

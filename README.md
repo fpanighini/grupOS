@@ -110,6 +110,10 @@ $ ./bin/worker
 When the worker receives the path of a file that does not exist, it will show an error message and it will return through standard output its process id, 32 characters of the letter 'X' and the file path that was not found.
 The worker program will not finish, it will continue to receive through standard input file paths and it will function as normal until the EOF signal is received.
 
+| Name       | Value | Description                             |
+|------------|-------|-----------------------------------------|
+| RW_ERROR   | 1     | Error when reading or writing to a file |
+
 ### Application
 
 The application will receive by parameter the list of all the file paths for it to calculate the md5sum hash.
@@ -139,7 +143,13 @@ It will return a non zero value if an error occurred.
 
 #### Errors
 
-MEMORY_ERROR
+| Name            | Value | Description                                         |
+|-----------------|-------|-----------------------------------------------------|
+| PARAMETER_ERROR | 1     | Wrong number of input parameters                    |
+| MEMORY_ERROR    | 2     | Error when allocating memory or when creating pipes |
+| SELECT_ERROR    | 3     | Select function error                               |
+| RW_ERROR        | 4     | Error when reading or writing to a file             |
+| FILE_ERROR      | 5     | Error when opening a file                           |
 
 ### Viewer
 
@@ -177,7 +187,10 @@ It will return a non zero value if an error occurred.
 
 #### Errors
 
-MEMORY_ERROR
+| Name            | Value | Description                             |
+|-----------------|-------|-----------------------------------------|
+| PARAMETER_ERROR | 1     | Wrong number of input parameters        |
+| MEMORY_ERROR    | 2     | Error when allocating memory            |
 
 ## Authors
 

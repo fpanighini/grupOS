@@ -14,4 +14,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#define SUCCESS 0
+#define PARAMETER_ERROR 1
+#define MEMORY_ERROR 2
+
 #endif // VIEWER_H
