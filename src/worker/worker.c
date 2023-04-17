@@ -25,7 +25,7 @@ int md5sum(char *hash, char *const path)
         }
         close_pipe(pipe_fd);
         char *const argv[3] = {MD5SUM_PATH, path, NULL};
-        execv(MD5SUM_PATH, argv);
+        execvp(MD5SUM_PATH, argv);
         _exit(1);
     }
 
