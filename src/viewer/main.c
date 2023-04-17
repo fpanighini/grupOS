@@ -34,7 +34,7 @@ int main(int argc, char const *argv[])
     for (int i = 0; i < shm_info->file_count; i++)
     {
         sem_wait(&shm_info->sem_buf);
-        dprintf(STDOUT_FILENO, "%s\n", shm_buf + (i * SHM_WIDTH));
+        dprintf(STDOUT_FILENO, "%s", shm_buf + (i * SHM_WIDTH));
     }
 
     sem_post(&shm_info->sem_viewer);

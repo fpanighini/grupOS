@@ -6,7 +6,6 @@
 int main()
 {
     char hash[MD5_LEN + 1];
-    char buf[SHM_WIDTH];
     char *path = NULL;
     ssize_t read_len;
     size_t n = 0;
@@ -20,8 +19,7 @@ int main()
         }
         hash[MD5_LEN] = '\0';
 
-        int write_len = sprintf(buf, WORKER_MESSAGE_FORMAT , getpid(), hash, path);
-        if (write(STDOUT_FILENO, &write_len, sizeof(int)) != sizeof(int) || write(STDOUT_FILENO, buf, write_len) != write_len)
+        if (dprintf(STDOUT_FILENO, WORKER_MESSAGE_FORMAT, getpid(), hash, path) == -1)
         {
             perror("Worker write error");
             free(path);
