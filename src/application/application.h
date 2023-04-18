@@ -21,6 +21,7 @@
 #define RW_ERROR 4
 #define FILE_ERROR 5
 
+// Worker struct which contains its pipes & a file to read from
 typedef struct Worker
 {
     int pid;
@@ -32,7 +33,10 @@ typedef struct Worker
 void close_pipes(int pipe_fds[][2], size_t count);
 void close_files(FILE *files[], size_t count);
 
+// Opens pipes, forks workers, opens files & writes data. Checks for errors at each step
 int workers_spawn(Worker workers[], size_t count, fd_set *read_workers);
+
+// Closes pipes & waits for the workers to finish
 int workers_free(Worker workers[], size_t count);
 
 #endif // APPLICATION_H

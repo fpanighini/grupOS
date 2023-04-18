@@ -31,12 +31,14 @@ int main(int argc, char const *argv[])
         return MEMORY_ERROR;
     }
 
+    // Waits for the results in shm_buf and prints them to standard output
     for (int i = 0; i < shm_info->file_count; i++)
     {
         sem_wait(&shm_info->sem_buf);
         dprintf(STDOUT_FILENO, "%s", shm_buf + (i * SHM_WIDTH));
     }
 
+    // Marks end
     sem_post(&shm_info->sem_viewer);
 
     close_shm(shm_info, shm_buf);

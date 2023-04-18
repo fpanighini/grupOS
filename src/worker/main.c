@@ -13,6 +13,7 @@ int main()
     {
         path[read_len - 1] = '\0';
 
+        // Performs hash
         if (md5sum(hash, path) == -1)
         {
             memset(hash, HASH_ERROR_CHAR, MD5_LEN);

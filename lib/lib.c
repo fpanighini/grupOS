@@ -16,18 +16,21 @@ int create_shm(char *path_template, SharedMemInfo **shm_info_ref, char **shm_buf
         return -1;
     }
 
+    // Returns file descriptor of the file
     int info_fd = mkstemp(path_template);
     if (info_fd == -1)
     {
         return -1;
     }
 
+    // Truncates the file to the size of the shm info struct
     if (ftruncate(info_fd, sizeof(SharedMemInfo)) == -1)
     {
         close(info_fd);
         return -1;
     }
 
+    // Maps & allocates shared memory information
     SharedMemInfo *shm_info = mmap(NULL, sizeof(SharedMemInfo), PROT_READ | PROT_WRITE, MAP_SHARED, info_fd, 0);
     close(info_fd);
     if (shm_info == MAP_FAILED)
@@ -35,14 +38,17 @@ int create_shm(char *path_template, SharedMemInfo **shm_info_ref, char **shm_buf
         return -1;
     }
 
+    // Initially formats buf_path & returns its file descriptor
     strncpy(shm_info->buf_path, SHM_TEMPLATE, SHM_PATH_LEN);
     int buf_fd = mkstemp(shm_info->buf_path);
     if (buf_fd == -1)
     {
         munmap(shm_info, sizeof(SharedMemInfo));
         return -1;
+
     }
 
+    // Truncates the buffer file for the specific space needed
     if (ftruncate(buf_fd, file_count * SHM_WIDTH) == -1)
     {
         close(buf_fd);
@@ -50,6 +56,7 @@ int create_shm(char *path_template, SharedMemInfo **shm_info_ref, char **shm_buf
         return -1;
     }
 
+    // Maps & allocates buffer 
     char *shm_buf = mmap(NULL, file_count * SHM_WIDTH, PROT_READ | PROT_WRITE, MAP_SHARED, buf_fd, 0);
     close(buf_fd);
     if (shm_buf == MAP_FAILED)
@@ -58,6 +65,7 @@ int create_shm(char *path_template, SharedMemInfo **shm_info_ref, char **shm_buf
         return -1;
     }
 
+    // Initialization of viewer semaphore
     shm_info->file_count = file_count;
     if (sem_init(&shm_info->sem_viewer, 1, 1) == -1)
     {
@@ -66,6 +74,7 @@ int create_shm(char *path_template, SharedMemInfo **shm_info_ref, char **shm_buf
         return -1;
     }
 
+    // Initialization of buffer semaphore
     if (sem_init(&shm_info->sem_buf, 1, 0) == -1)
     {
         sem_destroy(&shm_info->sem_viewer);
@@ -132,6 +141,7 @@ int open_shm(const char *path, SharedMemInfo **shm_info_ref, char **shm_buf_ref)
 
 void close_shm(SharedMemInfo *shm_info, char *shm_buf)
 {
+    // Deallocates buffer & shm _info shared memory
     munmap(shm_buf, shm_info->file_count * SHM_WIDTH);
     munmap(shm_info, sizeof(SharedMemInfo));
 }

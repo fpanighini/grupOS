@@ -13,7 +13,9 @@ int md5sum(char *hash, char *const path)
     }
 
     int pid = fork();
-    if (pid == -1) // Fork Error
+
+    // Fork Error
+    if (pid == -1)
     {
         close_pipe(pipe_fd);
         return -1;
@@ -22,7 +24,8 @@ int md5sum(char *hash, char *const path)
     // child code
     if (pid == 0)
     {
-        if (dup2(pipe_fd[WRITE_END], STDOUT_FILENO) == -1) // Connect stdout of process with write end of the pipe
+        // Connect stdout of process with write end of the pipe
+        if (dup2(pipe_fd[WRITE_END], STDOUT_FILENO) == -1)
         {
             _exit(1);
         }
@@ -33,12 +36,15 @@ int md5sum(char *hash, char *const path)
     }
 
     int status;
-    if (waitpid(pid, &status, 0) == -1 || !WIFEXITED(status) || WEXITSTATUS(status) != 0)  // wait for child process and ask if status is false and if exit status is not zero
-    {                                                                                      // Something went wrong with the child process
+    // Wait for child process, check if status is false and check exit status
+    if (waitpid(pid, &status, 0) == -1 || !WIFEXITED(status) || WEXITSTATUS(status) != 0)
+    {
+        // Something went wrong with the child process
         close_pipe(pipe_fd);
         return -1;
     }
 
+    // Read hashes
     if (read(pipe_fd[READ_END], hash, MD5_LEN) != MD5_LEN)
     {
         close_pipe(pipe_fd);

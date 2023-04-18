@@ -14,8 +14,7 @@
 #define SUCCESS 0
 #define RW_ERROR 1
 
+// Returns a hash of a file, given its path
 int md5sum(char *hash, char *const path);
-
-
 
 #endif // WORKER_H

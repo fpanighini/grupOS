@@ -35,10 +35,14 @@ typedef struct SharedMemInfo {
 
 void close_pipe(int pipe_fd[2]);
 
+// Create shared memory
 int create_shm(char *path_template, SharedMemInfo **shm_info_ref, char **shm_buf_ref, int file_count);
+// Destroy shared memory
 void destroy_shm(SharedMemInfo *shm_info, char *shm_buf);
 
+// Open shared memory
 int open_shm(const char * path, SharedMemInfo **shm_info_ref, char **shm_buf_ref);
+// Close shared memory
 void close_shm(SharedMemInfo *shm_info, char *shm_buf);
 
 #endif
